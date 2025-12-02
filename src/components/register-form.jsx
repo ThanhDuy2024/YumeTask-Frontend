@@ -16,11 +16,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 // Schema Zod
 const schema = z.object({
+  fullName: z.string().nonempty("Họ và tên bắt buộc phải có!"),
   email: z.string().email("Email không hợp lệ").nonempty("Email bắt buộc phải có!"),
   password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự").nonempty("Password bắt buộc phải có!"),
 });
 
-export function LoginForm(props) {
+export function RegisterForm(props) {
   const { register, handleSubmit, formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
@@ -38,12 +39,25 @@ export function LoginForm(props) {
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold text-[#185ADB]">
-                  Chào mừng bạn quay lại
+                  Chào mừng bạn đến với Yume
                 </h1>
                 <p className="text-muted-foreground text-balance">
-                  Đăng nhập để tiếp tục lập kế hoạch hôm nay nào !!!
+                  Đăng ký để cùng nhau lập kế hoạch nào!!!
                 </p>
               </div>
+              {/* Email Field */}
+              <Field>
+                <FieldLabel htmlFor="fullName">Họ và tên</FieldLabel>
+                <Input
+                  id="fullName"
+                  type="fullName"
+                  placeholder="VD: Nguyễn Văn A"
+                  {...register("fullName")}
+                />
+                {errors.fullName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>
+                )}
+              </Field>
 
               {/* Email Field */}
               <Field>
@@ -63,12 +77,6 @@ export function LoginForm(props) {
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto text-sm underline-offset-2 hover:underline"
-                  >
-                    Bạn quên mật khẩu?
-                  </a>
                 </div>
                 <Input
                   id="password"
@@ -131,9 +139,9 @@ export function LoginForm(props) {
               </Field>
 
               <FieldDescription className="text-center ">
-                Bạn chưa có tài khoản?{" "}
-                <Link to={"/register"} className="hover:text-blue-500">
-                  Hãy đăng ký ngay tại đây!
+                Bạn đã có tài khoản?{" "}
+                <Link to={"/login"} className="hover:text-blue-500">
+                  Đăng nhập ngay tại đây!!
                 </Link>
               </FieldDescription>
             </FieldGroup>
