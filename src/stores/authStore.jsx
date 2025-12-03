@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { axiosInstance } from "@/services/axios.service";
 import { toast } from "sonner";
+import { register } from "@/services/auth/loginService";
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -14,7 +14,7 @@ export const useAuthStore = create((set) => ({
     });
 
     try {
-      const res = await axiosInstance.post("account/create", data);
+      const res = register(data);
       toast.success("Đăng ký thành công!");
       return res.data;
     } catch (error) {
