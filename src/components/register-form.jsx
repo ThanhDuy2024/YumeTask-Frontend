@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -13,22 +14,24 @@ import { Link } from "react-router-dom";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuthStore } from "@/stores/authStore";
 
 // Schema Zod
 const schema = z.object({
-  fullName: z.string().nonempty("Họ và tên bắt buộc phải có!"),
+  userName: z.string().nonempty("Họ và tên bắt buộc phải có!"),
   email: z.string().email("Email không hợp lệ").nonempty("Email bắt buộc phải có!"),
   password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự").nonempty("Password bắt buộc phải có!"),
 });
 
 export function RegisterForm(props) {
+  const { registerApi, loading, error } = useAuthStore(); 
   const { register, handleSubmit, formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = (data) => {
-    console.log("Form Data:", data);
+  const onSubmit = async (data) => {
+    await registerApi(data);
   };
 
   return (
@@ -47,15 +50,15 @@ export function RegisterForm(props) {
               </div>
               {/* Email Field */}
               <Field>
-                <FieldLabel htmlFor="fullName">Họ và tên</FieldLabel>
+                <FieldLabel htmlFor="userName">Họ và tên</FieldLabel>
                 <Input
-                  id="fullName"
-                  type="fullName"
+                  id="userName"
+                  type="userName"
                   placeholder="VD: Nguyễn Văn A"
-                  {...register("fullName")}
+                  {...register("userName")}
                 />
-                {errors.fullName && (
-                  <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>
+                {errors.userName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.userName.message}</p>
                 )}
               </Field>
 
