@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { toast } from "sonner";
-import { register } from "@/services/auth/loginService";
+import { register } from "@/services/auth/registerService";
 
 export const useAuthStore = create((set) => ({
   user: null,
