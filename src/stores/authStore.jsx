@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { toast } from "sonner";
 import { register } from "@/services/auth/registerService";
+import { login } from "@/services/auth/loginService";
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -14,7 +15,7 @@ export const useAuthStore = create((set) => ({
     });
 
     try {
-      const res = register(data);
+      const res = await register(data);
       toast.success("Đăng ký thành công!");
       return res.data;
     } catch (error) {
@@ -25,4 +26,23 @@ export const useAuthStore = create((set) => ({
       set({ loading: false });
     }
   },
+
+  loginApi: async (data) => {
+    set({
+      loading: true, 
+      error: null
+    });
+
+    try {
+      const res = await login(data);
+      toast.success("Đăng nhập thành công")
+      return res.data;
+    } catch (error) {
+      set({error: error?.response?.data?.message || ""})
+      toast.error(error?.response?.data?.message);
+      return null
+    } finally {
+      set({ loading: false })
+    }
+  }
 }))
