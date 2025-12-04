@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -13,21 +14,23 @@ import { Link } from "react-router-dom";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuthStore } from "@/stores/authStore";
 
 // Schema Zod
 const schema = z.object({
-  email: z.string().email("Email không hợp lệ").nonempty("Email bắt buộc phải có!"),
-  password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự").nonempty("Password bắt buộc phải có!"),
+  email: z.string().email("Email không hợp lệ").nonempty("Bạn chưa nhập email"),
+  password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự").nonempty("Bạn chưa nhập mật khẩu"),
 });
 
 export function LoginForm(props) {
+  const { loginApi, loading, error } = useAuthStore();
   const { register, handleSubmit, formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = (data) => {
-    console.log("Form Data:", data);
+  const onSubmit = async (data) => {
+    await loginApi(data); 
   };
 
   return (
