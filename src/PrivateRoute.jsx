@@ -1,9 +1,21 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+import { useQuery } from "@tanstack/react-query"
+import { profile } from "./services/auth/profileService"
 import { Navigate } from "react-router-dom";
 
-export const PrivateRoute = async () => {
+export const PrivateRoute = ({ children }) => {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["profile"],
+    queryFn: profile,
+    retry: false
+  });
 
-  return (
-    <div>ok</div>
-  ) 
+  if(isLoading) {
+     return <span>Loading...</span>
+  }
+
+  if (isError || data.code === "error") {
+    return <Navigate to="/login" replace />;
+  };
+
+  return children
 }
