@@ -13,7 +13,9 @@ export const AppRouter = () => {
         <Route path='/register' element={<RegisterPage />} />
         <Route element={<MainLayout/>}>
           <Route path='/task' element={
+            <PrivateRoute>
               <TaskPage />
+            </PrivateRoute>
           }/>
           <Route path='/profile' element={<ProfilePage/>}/>
         </Route>
