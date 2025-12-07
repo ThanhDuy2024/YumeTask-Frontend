@@ -97,7 +97,7 @@ export function RegisterForm(props) {
                   type="submit"
                   className="bg-blue-500 text-white hover:bg-blue-800 cursor-pointer"
                 >
-                  Đăng nhập
+                  Đăng ký
                 </Button>
               </Field>
 
