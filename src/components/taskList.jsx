@@ -1,7 +1,7 @@
 // taskList.jsx (Revised)
 
 import React from "react";
-import TaskEmptyState from "./TaskEmptyState";
+import TaskEmptyState from "./taskEmptyState";
 import TaskCard from "./taskCard";
 
 const TaskList = ({ filteredTasks, filter, handleTaskChanged }) => {
