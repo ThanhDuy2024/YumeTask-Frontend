@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState } from "react";
 import { Card } from "./ui/card";
 import { cn } from "@/lib/utils";
@@ -6,19 +5,56 @@ import { Button } from "./ui/button";
 import { Calendar, CheckCircle2, Circle, SquarePen, Trash2 } from "lucide-react";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
+import { taskDelete } from "@/services/tasks/taskDeleteService";
+import { updateOneTask, updateStatus } from "@/services/tasks/updateTaskService";
 
 const TaskCard = ({ task, index, handleTaskChanged }) => {
   const [isEditting, setIsEditting] = useState(false);
-  const [updateTaskTitle, setUpdateTaskTitle] = useState(task.title || "");
+  const [updateTaskTitle, setUpdateTaskTitle] = useState(task.Content || "");
 
   const deleteTask = async (taskId) => {
+    try {
+      taskDelete(taskId);
+      toast.success("Xóa nhiệm vụ thành công");
+      handleTaskChanged();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const updateTask = async () => {
+    try {
+      setIsEditting(false);
+
+      await updateOneTask(task.id, {
+        taskContent: updateTaskTitle,
+        status: "init"
+      });
+      toast.success("Cập nhật nhiệm vụ thành công");
+      handleTaskChanged();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const toggleTaskCompleteButton = async () => {
-
+    try {
+      if (task.status === "init") {
+        await updateStatus(task.id, {
+          status: "complete"
+        });
+        toast.success("Cập nhật nhiệm vụ thành công");
+        handleTaskChanged();
+      } else {
+        await updateStatus(task.id, {
+          status: "init"
+        });
+        toast.success("Cập nhật nhiệm vụ thành công");
+        handleTaskChanged();
+      }
+    } catch (error) {
+      console.log(error)
+    }
   };
 
   const handleKeyPress = (event) => {
@@ -67,7 +103,7 @@ const TaskCard = ({ task, index, handleTaskChanged }) => {
               onKeyPress={handleKeyPress}
               onBlur={() => {
                 setIsEditting(false);
-                setUpdateTaskTitle(task.title || "");
+                setUpdateTaskTitle(task.Content || "");
               }}
             />
           ) : (
@@ -121,7 +157,7 @@ const TaskCard = ({ task, index, handleTaskChanged }) => {
             variant="ghost"
             size="icon"
             className="flex-shrink-0 transition-colors size-8 text-muted-foreground hover:text-destructive"
-            onClick={() => deleteTask(task._id)}
+            onClick={() => deleteTask(task.id)}
           >
             <Trash2 className="size-4" />
           </Button>

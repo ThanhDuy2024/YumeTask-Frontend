@@ -23,8 +23,8 @@ export const TaskPage = () => {
     }
   }
 
-  const handleTaskChange = () => {
-    taskApi();
+  const handleTaskChange = async () => {
+    await taskApi();
   }
   
   //filter task
@@ -59,6 +59,7 @@ export const TaskPage = () => {
           {/* taskList */}
           <TaskList
             filteredTasks={filterTasks}
+            handleTaskChanged={handleTaskChange}
           />
         </div>
       </div>
