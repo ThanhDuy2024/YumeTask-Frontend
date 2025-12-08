@@ -15,6 +15,7 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "@/stores/authStore";
+import { useNavigate } from "react-router-dom";
 
 // Schema Zod
 const schema = z.object({
@@ -25,13 +26,21 @@ const schema = z.object({
 
 export function RegisterForm(props) {
   const { registerApi, loading, error } = useAuthStore(); 
+  const navigate = useNavigate();
   const { register, handleSubmit, formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
   });
 
   const onSubmit = async (data) => {
-    await registerApi(data);
+    try {
+      const res = await registerApi(data);
+      if(res != null) {
+        navigate("/login");
+      }
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
