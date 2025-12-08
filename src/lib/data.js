@@ -3,3 +3,5 @@ export const FilterType = {
   init: "đang làm",
   complete: "hoàn thành",
 };
+
+export const limit = 4;
