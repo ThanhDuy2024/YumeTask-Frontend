@@ -123,7 +123,7 @@ const TaskCard = ({ task, index, handleTaskChanged }) => {
           <div className="flex items-center gap-2 mt-1">
             <Calendar className="size-3 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              {new Date(task.createdAt).toLocaleString()}
+              {task.createdAt}
             </span>
             {task.completedAt && (
               <>
