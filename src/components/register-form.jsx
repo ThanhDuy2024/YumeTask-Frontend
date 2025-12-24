@@ -13,6 +13,8 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner"; // ✅ THÊM
+
 // Schema Zod
 const schema = z.object({
   userName: z.string().nonempty("Họ và tên bắt buộc phải có!"),
@@ -44,8 +46,14 @@ export function RegisterForm(props) {
       if (res) {
         navigate("/otp");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      // ✅ FIX QUAN TRỌNG: CHỈ HIỂN THỊ STRING
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Đăng ký thất bại, vui lòng thử lại";
+
+      toast.error(message);
     }
   };
 
@@ -111,7 +119,6 @@ export function RegisterForm(props) {
 
               <FieldSeparator>Hoặc tiếp tục với</FieldSeparator>
 
-              {/* SOCIAL */}
               <Field className="grid grid-cols-3 gap-4">
                 <Button variant="outline" type="button">Apple</Button>
                 <Button variant="outline" type="button">Google</Button>
@@ -127,7 +134,7 @@ export function RegisterForm(props) {
             </FieldGroup>
           </form>
 
-          {/* IMAGE (FIXED) */}
+          {/* IMAGE */}
           <div className="bg-muted relative hidden md:block">
             <img
               src="/d035b2b1891c5a3d9ced344c33a77f94.jpg"
