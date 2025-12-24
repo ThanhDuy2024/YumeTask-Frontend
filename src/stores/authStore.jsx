@@ -15,7 +15,7 @@ export const useAuthStore = create((set) => ({
 
     try {
       const res = await register(data);
-      toast.success("Đăng ký thành công!");
+      toast.success("OTP đã được gửi về email của bạn!");
       return res
     } catch (error) {
       set({ error: error.response?.data?.message || "Đăng ký thất bại" });
