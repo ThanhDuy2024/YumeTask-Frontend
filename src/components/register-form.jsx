@@ -13,7 +13,6 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "@/stores/authStore";
-
 // Schema Zod
 const schema = z.object({
   userName: z.string().nonempty("Họ và tên bắt buộc phải có!"),
