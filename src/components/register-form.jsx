@@ -36,7 +36,7 @@ export function RegisterForm(props) {
     try {
       const res = await registerApi(data);
       if(res != null) {
-        navigate("/login");
+        navigate("/otp");
       }
     } catch (error) {
       console.log(error);
