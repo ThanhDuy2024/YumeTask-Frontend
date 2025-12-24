@@ -44,7 +44,7 @@ export function RegisterForm(props) {
     try {
       const res = await registerApi(data);
       if (res) {
-        navigate("/otp");
+        navigate("/login");
       }
     } catch (error) {
       // ✅ FIX QUAN TRỌNG: CHỈ HIỂN THỊ STRING
