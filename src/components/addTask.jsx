@@ -16,7 +16,7 @@ const AddTask = ({ handleNewTaskAdded }) => {
     }
 
     try {
-      createTask(data);
+      await createTask(data);
       toast.success(`Tạo nhiệm vụ ${data.taskContent} thành công`)
       handleNewTaskAdded();
       setNewTaskTitle("");
@@ -25,9 +25,9 @@ const AddTask = ({ handleNewTaskAdded }) => {
     }
   };
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = async (event) => {
     if (event.key === "Enter") {
-      addTask();
+      await addTask();
     }
   };
 

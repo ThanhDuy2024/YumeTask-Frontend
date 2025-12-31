@@ -14,7 +14,7 @@ const TaskCard = ({ task, index, handleTaskChanged }) => {
 
   const deleteTask = async (taskId) => {
     try {
-      taskDelete(taskId);
+      await taskDelete(taskId);
       toast.success("Xóa nhiệm vụ thành công");
       handleTaskChanged();
     } catch (error) {
@@ -57,9 +57,9 @@ const TaskCard = ({ task, index, handleTaskChanged }) => {
     }
   };
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = async (event) => {
     if (event.key === "Enter") {
-      updateTask();
+      await updateTask();
     }
   };
 
