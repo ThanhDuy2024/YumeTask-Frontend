@@ -5,7 +5,7 @@ function App() {
   return (
     <>
       <AppRouter/>
-      <Toaster richColors closeButton /> m 
+      <Toaster richColors closeButton />
     </>
   )
 }
