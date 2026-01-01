@@ -4,7 +4,7 @@ import { TaskCalendarView } from "@/components/TaskCalendarView";
 import TaskList from "@/components/taskList";
 import TaskListPagination from "@/components/taskListPagination";
 import { taskAll, taskList } from "@/services/tasks/taskListService";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export const TaskPage = () => {
   const [taskBuffer, setTaskBuffer] = useState([]);
@@ -15,48 +15,60 @@ export const TaskPage = () => {
   const [timeRange, setTimeRange] = useState("all");
   const [viewMode, setViewMode] = useState("list");
 
-  // Gọi API phân trang cho Danh sách
-  const fetchTaskPagination = async () => {
+  // Dùng useCallback để hàm không bị khởi tạo lại, tránh lỗi vòng lặp useEffect
+  const fetchTaskPagination = useCallback(async () => {
     try {
-      // SỬA LỖI: Dùng trực tiếp state thay vì tham số để Pagination luôn có data
       const data = await taskList(filter, timeRange, page);
-      setTaskBuffer(data.data);
-      setTotalPage(data.totalPage);
+      // Kiểm tra an toàn: nếu data.data không tồn tại thì gán mảng rỗng []
+      setTaskBuffer(data?.data || []);
+      setTotalPage(data?.totalPage || 0);
     } catch (error) {
-      console.log("Error fetching tasks:", error);
+      console.error("Lỗi fetch danh sách:", error);
+      setTaskBuffer([]); // Tránh render object lỗi
     }
-  };
+  }, [filter, timeRange, page]);
 
-  // Gọi API lấy TẤT CẢ cho Lịch (Fix vụ ko hiện năm 2025)
-  const fetchAllTasksForCalendar = async () => {
+  const fetchAllTasksForCalendar = useCallback(async () => {
     try {
       const data = await taskAll();
-      setAllTasks(data.data);
+      setAllTasks(data?.data || []);
     } catch (error) {
-      console.log("Error fetching all tasks:", error);
+      console.error("Lỗi fetch toàn bộ task:", error);
+      setAllTasks([]);
     }
-  };
+  }, []);
 
+  // Effect điều khiển việc gọi dữ liệu
   useEffect(() => {
     if (viewMode === "list") {
       fetchTaskPagination();
     } else {
       fetchAllTasksForCalendar();
     }
-  }, [filter, timeRange, page, viewMode]);
+  }, [viewMode, fetchTaskPagination, fetchAllTasksForCalendar]);
 
   const handleTaskChange = async () => {
     if (viewMode === "list") await fetchTaskPagination();
     else await fetchAllTasksForCalendar();
   };
 
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+    setPage(1);
+  };
+
+  const handleTimeRangeChange = (newTime) => {
+    setTimeRange(newTime);
+    setPage(1);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50/30 pt-8 pb-20">
-      <div className={`mx-auto px-4 space-y-6 transition-all duration-500 ${viewMode === 'calendar' ? 'max-w-7xl' : 'max-w-3xl'}`}>
+    <div className="min-h-screen bg-gray-50/50 pt-8 pb-20">
+      <div className={`mx-auto px-4 space-y-6 transition-all duration-700 ${viewMode === 'calendar' ? 'max-w-7xl' : 'max-w-3xl'}`}>
         
-        <div className="text-center space-y-2">
+        <div className="text-center">
           <h1 className="text-[36px] font-bold text-[#185ADB]">Kế hoạch của tôi</h1>
-          <p className="text-gray-500 text-sm">Quản lý công việc hiệu quả mỗi ngày</p>
+          <p className="text-gray-500 text-sm mt-2">Quản lý công việc hiệu quả mỗi ngày</p>
         </div>
 
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
@@ -65,16 +77,27 @@ export const TaskPage = () => {
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex p-1 bg-gray-200/50 rounded-xl w-fit">
-            <button onClick={() => setViewMode("list")} className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500'}`}>
+            <button 
+              onClick={() => setViewMode("list")} 
+              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
               ☰ Danh sách
             </button>
-            <button onClick={() => setViewMode("calendar")} className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500'}`}>
+            <button 
+              onClick={() => setViewMode("calendar")} 
+              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
               📅 Lịch biểu
             </button>
           </div>
 
           {viewMode === "list" && (
-            <StatsAndFilters filter={filter} setFilter={setFilter} timeRange={timeRange} setTimeRange={setTimeRange} />
+            <StatsAndFilters 
+              filter={filter} 
+              setFilter={handleFilterChange} 
+              timeRange={timeRange} 
+              setTimeRange={handleTimeRangeChange} 
+            />
           )}
         </div>
 
