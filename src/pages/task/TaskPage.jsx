@@ -45,9 +45,9 @@ export const TaskPage = () => {
     }
   }, [filter, timeRange, page, viewMode]);
 
-  const handleTaskChange = () => {
-    if (viewMode === "list") fetchTaskPagination();
-    else fetchAllTasksForCalendar();
+  const handleTaskChange = async () => {
+    if (viewMode === "list") await fetchTaskPagination();
+    else await fetchAllTasksForCalendar();
   };
 
   return (
