@@ -11,12 +11,13 @@ export const TaskPage = () => {
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPage, setTotalPage] = useState(0);
+  const [timeRange, setTimeRange] = useState("all"); // Lọc theo: today, week, month
 
   // 1. Hàm gọi API: Luôn lấy giá trị mới nhất từ state
-  const taskApi = async (currentFilter, currentPage) => {
+  const taskApi = async (currentFilter, currentTimeRange, currentPage) => {
     try {
       // Truyền đúng giá trị đang có vào service
-      const data = await taskList(currentFilter, currentPage);
+      const data = await taskList(currentFilter, currentTimeRange, currentPage);
       setTaskBuffer(data.data);
       setTotalPage(data.totalPage);
     } catch (error) {
@@ -26,9 +27,8 @@ export const TaskPage = () => {
 
   // 2. Chỉ dùng 1 useEffect chính để xử lý gọi dữ liệu
   useEffect(() => {
-    taskApi(filter, page);
-  }, [filter, page]); // Chạy lại khi 1 trong 2 thay đổi
-
+    taskApi(filter, timeRange, page);
+  }, [filter, timeRange, page]); // Chạy lại khi 1 trong 2 thay đổi
   // 3. Xử lý riêng khi người dùng thay đổi filter
   const handleFilterChange = (newFilter) => {
     setFilter(newFilter);
@@ -38,6 +38,12 @@ export const TaskPage = () => {
   // 4. Cập nhật hàm này để các component con gọi đúng
   const handleTaskChange = () => {
     taskApi(filter, page);
+  };
+
+  // Handler cho lọc thời gian
+  const handleTimeRangeChange = (newTime) => {
+    setTimeRange(newTime);
+    setPage(1); // Reset trang về 1 khi đổi bộ lọc
   };
 
   const handleNext = () => {
@@ -63,6 +69,8 @@ export const TaskPage = () => {
           <StatsAndFilters
             filter={filter}
             setFilter={handleFilterChange} // Dùng hàm handle mới để reset page
+            timeRange={timeRange} // Truyền thêm
+            setTimeRange={handleTimeRangeChange} // Truyền thêm
           />
 
           <TaskList
