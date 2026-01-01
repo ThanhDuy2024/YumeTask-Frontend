@@ -37,7 +37,7 @@ export const TaskPage = () => {
 
   // 4. Cập nhật hàm này để các component con gọi đúng
   const handleTaskChange = () => {
-    taskApi(filter, page);
+    taskApi(filter, timeRange, page);
   };
 
   // Handler cho lọc thời gian
