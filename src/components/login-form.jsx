@@ -32,9 +32,19 @@ export function LoginForm(props) {
   });
 
   const onSubmit = async (data) => {
-    const res = await loginApi(data); 
-    if(res) {
-      navigate("/task");
+    try {
+      const res = await loginApi(data);
+      // Nếu loginApi thành công và trả về dữ liệu hợp lệ
+      if (res) {
+        navigate("/task");
+      }
+    } catch (err) {
+      // ĐÂY LÀ CHỖ QUAN TRỌNG:
+      // Sếp phải chắc chắn rằng thứ mình in ra là STRING, không phải OBJECT
+      console.error("Login failed:", err);
+
+      // Nếu sếp có dùng Toast ở đây, hãy viết:
+      toast.error(err.response?.data?.message || err.message || "Lỗi đăng nhập");
     }
   };
 
