@@ -3,6 +3,8 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './calendar-custom.css';
 import { updateStatus } from "@/services/tasks/updateTaskService";
+// 1. Giả sử bạn import hàm deleteTask từ service của mình
+import { taskDelete } from "@/services/tasks/taskDeleteService";
 
 export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -15,6 +17,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     setCurrentPage(1);
   }, [selectedDate, filterStatus]);
 
+  // --- LOGIC CẬP NHẬT TRẠNG THÁI ---
   const updateTaskStatus = async (taskId, currentStatus) => {
     let newStatus = (currentStatus === "done" || currentStatus === "complete") ? "init" : "complete";
     setLoadingId(taskId);
@@ -26,6 +29,23 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     } catch (error) {
       console.error("Lỗi cập nhật trạng thái:", error);
       alert("Không thể cập nhật trạng thái!");
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  // --- 2. LOGIC XÓA TASK ---
+  const handleDeleteTask = async (e, taskId) => {
+    e.stopPropagation(); // Ngăn chặn sự kiện click lan ra thẻ cha (tránh vô tình toggle status)
+    setLoadingId(taskId);
+    try {
+      const response = await taskDelete(taskId);
+      if (response) {
+        await handleTaskChanged(); // Load lại danh sách sau khi xóa
+      }
+    } catch (error) {
+      console.error("Lỗi khi xóa task:", error);
+      alert("Xóa thất bại. Vui lòng thử lại!");
     } finally {
       setLoadingId(null);
     }
@@ -101,11 +121,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
           </div>
 
           <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
-            {[
-              { id: 'all', label: 'Tất cả' },
-              { id: 'init', label: 'Chưa xong' },
-              { id: 'complete', label: 'Xong' }
-            ].map((tab) => (
+            {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Xong' }].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setFilterStatus(tab.id)}
@@ -129,17 +145,17 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
               return (
                 <div
                   key={task.id}
-                  className={`group p-5 rounded-2xl flex items-start gap-4 border transition-all cursor-pointer ${
+                  className={`group p-5 rounded-2xl flex items-center gap-4 border transition-all cursor-pointer ${
                     isDone ? 'bg-gray-50/50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-blue-200'
                   } ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
                   onClick={() => updateTaskStatus(task.id, task.status)}
                 >
-                  {/* Cột trái: Checkbox */}
-                  <div className="relative mt-1">
+                  {/* Checkbox */}
+                  <div className="relative">
                     <input
                       type="checkbox"
                       checked={isDone}
-                      onChange={() => { }} 
+                      readOnly
                       className="w-6 h-6 rounded-lg accent-[#185ADB] cursor-pointer"
                     />
                     {isUpdating && (
@@ -149,14 +165,13 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
                     )}
                   </div>
 
-                  {/* Cột phải: Nội dung (Xếp hàng dọc) */}
+                  {/* Nội dung task */}
                   <div className="flex-1 flex flex-col gap-1">
                     <p className={`text-base font-semibold leading-tight transition-all ${
                       isDone ? 'line-through text-gray-400' : 'text-gray-700'
                     }`}>
                       {task.taskContent || task.taskName}
                     </p>
-                    
                     <div className="flex items-center gap-1.5 text-gray-400">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -166,6 +181,17 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
                       </span>
                     </div>
                   </div>
+
+                  {/* 3. NÚT XÓA (Hiển thị khi hover hoặc luôn hiển thị tùy ý) */}
+                  <button
+                    onClick={(e) => handleDeleteTask(e, task.id)}
+                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                    title="Xóa nhiệm vụ"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               );
             })
@@ -177,7 +203,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
           )}
         </div>
 
-        {/* ĐIỀU KHIỂN PHÂN TRANG */}
+        {/* PHÂN TRANG */}
         {totalPages > 1 && (
           <div className="pt-6 mt-6 border-t border-gray-50 flex items-center justify-center gap-4">
             <button
@@ -189,7 +215,6 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
             >
               Trước
             </button>
-
             <div className="flex items-center gap-2">
               {[...Array(totalPages)].map((_, index) => (
                 <button
@@ -203,7 +228,6 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
                 </button>
               ))}
             </div>
-
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
