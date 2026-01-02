@@ -9,3 +9,8 @@ export const updateStatus = async (id, data) => {
   const res = await axiosInstance.put(`task/update/status/${id}`, data);
   return res.data;
 }
+
+export const updateTaskAdvan = async (id, data) => {
+  const res = await axiosInstance.put(`task/update/advan/${id}`, data);
+  return res.data;
+}
