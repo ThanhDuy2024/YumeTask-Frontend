@@ -8,34 +8,24 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
-  const [loadingId, setLoadingId] = useState(null); // Để hiển thị trạng thái đang update
+  const [loadingId, setLoadingId] = useState(null);
   const tasksPerPage = 4;
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedDate, filterStatus]);
 
-  // --- 2. HÀM GỌI API TRỰC TIẾP ---
   const updateTaskStatus = async (taskId, currentStatus) => {
-    let newStatus;
-    if (currentStatus === "init") {
-      newStatus = "complete"
-    } else if (currentStatus === "complete") {
-      newStatus = "init"
-    };
-
+    let newStatus = (currentStatus === "done" || currentStatus === "complete") ? "init" : "complete";
     setLoadingId(taskId);
     try {
-      // Giả sử updateTaskApi là hàm import từ file api service
       const response = await updateStatus(taskId, { status: newStatus });
-
-      // Nếu API trả về trực tiếp data (không phải object của axios)
-      // thì kiểm tra response có tồn tại hay không
       if (response) {
         await handleTaskChanged();
       }
     } catch (error) {
-      console.error("Lỗi:", error);
+      console.error("Lỗi cập nhật trạng thái:", error);
+      alert("Không thể cập nhật trạng thái!");
     } finally {
       setLoadingId(null);
     }
@@ -86,7 +76,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-8 w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-8 w-full font-sans">
       {/* CỘT TRÁI: LỊCH */}
       <div className="lg:col-span-5 p-6 bg-white rounded-3xl border border-gray-100 shadow-xl">
         <Calendar
@@ -94,11 +84,11 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
           value={selectedDate}
           tileContent={tileContent}
           locale="vi-VN"
-          className="mx-auto border-none w-full font-sans text-lg"
+          className="mx-auto border-none w-full text-lg"
         />
       </div>
 
-      {/* CỘT PHẢI: NHIỆM VỤ */}
+      {/* CỘT PHẢI: CHI TIẾT NHIỆM VỤ */}
       <div className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl min-h-[600px] flex flex-col">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-6 border-b border-gray-50 gap-4">
           <div className="flex flex-col gap-1">
@@ -110,12 +100,18 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
             </p>
           </div>
 
-          <div className="flex bg-gray-100 p-1 rounded-xl">
-            {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Hoàn thành' }].map((tab) => (
+          <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+            {[
+              { id: 'all', label: 'Tất cả' },
+              { id: 'init', label: 'Chưa xong' },
+              { id: 'complete', label: 'Xong' }
+            ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setFilterStatus(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
                 {tab.label}
               </button>
@@ -123,35 +119,52 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
           </div>
         </div>
 
+        {/* DANH SÁCH NHIỆM VỤ */}
         <div className="flex-1 space-y-3">
           {currentTasks.length > 0 ? (
             currentTasks.map((task) => {
               const isDone = task.status === 'done' || task.status === 'complete';
-              const isUpdating = loadingId === task._id;
+              const isUpdating = loadingId === task.id;
 
               return (
                 <div
                   key={task.id}
-                  className={`group p-5 rounded-2xl flex items-start gap-4 border transition-all cursor-pointer ${isDone ? 'bg-gray-50/50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-blue-200'} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
+                  className={`group p-5 rounded-2xl flex items-start gap-4 border transition-all cursor-pointer ${
+                    isDone ? 'bg-gray-50/50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-blue-200'
+                  } ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
                   onClick={() => updateTaskStatus(task.id, task.status)}
                 >
-                  <div className="relative">
+                  {/* Cột trái: Checkbox */}
+                  <div className="relative mt-1">
                     <input
                       type="checkbox"
                       checked={isDone}
-                      onChange={() => { }}
-                      className="w-6 h-6 rounded-lg accent-[#185ADB] cursor-pointer mt-0.5"
+                      onChange={() => { }} 
+                      className="w-6 h-6 rounded-lg accent-[#185ADB] cursor-pointer"
                     />
                     {isUpdating && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                         <div className="w-4 h-4 border-2 border-[#185ADB] border-t-transparent rounded-full animate-spin"></div>
                       </div>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <p className={`text-base font-semibold transition-all ${isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+
+                  {/* Cột phải: Nội dung (Xếp hàng dọc) */}
+                  <div className="flex-1 flex flex-col gap-1">
+                    <p className={`text-base font-semibold leading-tight transition-all ${
+                      isDone ? 'line-through text-gray-400' : 'text-gray-700'
+                    }`}>
                       {task.taskContent || task.taskName}
                     </p>
+                    
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-[11px] font-medium tracking-tight">
+                        {task.createdAt || "Chưa có thời gian"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
@@ -164,10 +177,42 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
           )}
         </div>
 
-        {/* PHẦN PHÂN TRANG (Giữ nguyên như cũ) */}
+        {/* ĐIỀU KHIỂN PHÂN TRANG */}
         {totalPages > 1 && (
-          <div className="pt-6 border-t border-gray-50 flex items-center justify-center gap-4">
-            {/* ... code phân trang ... */}
+          <div className="pt-6 mt-6 border-t border-gray-50 flex items-center justify-center gap-4">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                currentPage === 1 ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'
+              }`}
+            >
+              Trước
+            </button>
+
+            <div className="flex items-center gap-2">
+              {[...Array(totalPages)].map((_, index) => (
+                <button
+                  key={index + 1}
+                  onClick={() => setCurrentPage(index + 1)}
+                  className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
+                    currentPage === index + 1 ? 'bg-[#185ADB] text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'
+                  }`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                currentPage === totalPages ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'
+              }`}
+            >
+              Sau
+            </button>
           </div>
         )}
       </div>
