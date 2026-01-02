@@ -3,6 +3,7 @@ import StatsAndFilters from "@/components/statsAndFilters";
 import { TaskCalendarView } from "@/components/TaskCalendarView";
 import TaskList from "@/components/taskList";
 import TaskListPagination from "@/components/taskListPagination";
+import { createTaskAdvan } from "@/services/tasks/createTaskService";
 import { taskAll, taskList } from "@/services/tasks/taskListService";
 import { useEffect, useState, useCallback } from "react";
 
@@ -15,16 +16,24 @@ export const TaskPage = () => {
   const [timeRange, setTimeRange] = useState("all");
   const [viewMode, setViewMode] = useState("list");
 
-  // Dùng useCallback để hàm không bị khởi tạo lại, tránh lỗi vòng lặp useEffect
+  // --- STATE MỚI CHO THÊM NHIỆM VỤ NÂNG CAO ---
+  const [isAdvanModalOpen, setIsAdvanModalOpen] = useState(false);
+  const [newAdvanTask, setNewAdvanTask] = useState({
+    taskName: "",
+    taskNote: "",
+    startTime: "00:00",
+    endTime: "23:59",
+    date: new Date().toISOString().split('T')[0]
+  });
+
   const fetchTaskPagination = useCallback(async () => {
     try {
       const data = await taskList(filter, timeRange, page);
-      // Kiểm tra an toàn: nếu data.data không tồn tại thì gán mảng rỗng []
       setTaskBuffer(data?.data || []);
       setTotalPage(data?.totalPage || 0);
     } catch (error) {
       console.error("Lỗi fetch danh sách:", error);
-      setTaskBuffer([]); // Tránh render object lỗi
+      setTaskBuffer([]);
     }
   }, [filter, timeRange, page]);
 
@@ -38,7 +47,6 @@ export const TaskPage = () => {
     }
   }, []);
 
-  // Effect điều khiển việc gọi dữ liệu
   useEffect(() => {
     if (viewMode === "list") {
       fetchTaskPagination();
@@ -50,6 +58,28 @@ export const TaskPage = () => {
   const handleTaskChange = async () => {
     if (viewMode === "list") await fetchTaskPagination();
     else await fetchAllTasksForCalendar();
+  };
+
+  // --- LOGIC LƯU NHIỆM VỤ NÂNG CAO ---
+  const handleSaveAdvanTask = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await createTaskAdvan({
+        taskContent: newAdvanTask.taskName,
+        taskNote: newAdvanTask.taskNote,
+        dateTime: newAdvanTask.date,
+        startTime: newAdvanTask.startTime,
+        endTime: newAdvanTask.endTime
+      });
+      if (response) {
+        setIsAdvanModalOpen(false);
+        setNewAdvanTask({ taskName: "", taskNote: "", startTime: "00:00", endTime: "23:59", date: new Date().toISOString().split('T')[0] });
+        await handleTaskChange();
+      }
+    } catch (error) {
+      console.error("Lỗi thêm task:", error);
+      alert("Không thể thêm nhiệm vụ mới!");
+    }
   };
 
   const handleFilterChange = (newFilter) => {
@@ -91,6 +121,16 @@ export const TaskPage = () => {
             </button>
           </div>
 
+          {/* CHỈ HIỂN THỊ NÚT NÂNG CAO KHI Ở CHẾ ĐỘ LỊCH BIỂU */}
+          {viewMode === "calendar" && (
+            <button 
+              onClick={() => setIsAdvanModalOpen(true)}
+              className="bg-[#185ADB] text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1244a7] transition-all"
+            >
+              ＋ Thêm nâng cao
+            </button>
+          )}
+
           {viewMode === "list" && (
             <StatsAndFilters 
               filter={filter} 
@@ -120,6 +160,43 @@ export const TaskPage = () => {
           )}
         </div>
       </div>
+
+      {/* MODAL THÊM NHIỆM VỤ NÂNG CAO */}
+      {isAdvanModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 font-sans">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Tạo nhiệm vụ mới</h3>
+            <form onSubmit={handleSaveAdvanTask} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Tên nhiệm vụ</label>
+                <input type="text" required className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB]" value={newAdvanTask.taskName} onChange={(e) => setNewAdvanTask({...newAdvanTask, taskName: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Ghi chú</label>
+                <textarea className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB] min-h-[80px]" value={newAdvanTask.taskNote} onChange={(e) => setNewAdvanTask({...newAdvanTask, taskNote: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Bắt đầu</label>
+                  <input type="time" className="w-full p-3.5 rounded-2xl border border-gray-200" value={newAdvanTask.startTime} onChange={(e) => setNewAdvanTask({...newAdvanTask, startTime: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Kết thúc</label>
+                  <input type="time" className="w-full p-3.5 rounded-2xl border border-gray-200" value={newAdvanTask.endTime} onChange={(e) => setNewAdvanTask({...newAdvanTask, endTime: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Ngày làm việc</label>
+                <input type="date" required className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB]" value={newAdvanTask.date} onChange={(e) => setNewAdvanTask({...newAdvanTask, date: e.target.value})} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsAdvanModalOpen(false)} className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all">Hủy</button>
+                <button type="submit" className="flex-1 py-3.5 rounded-2xl bg-[#185ADB] font-bold text-white shadow-lg transition-all">Tạo ngay</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
