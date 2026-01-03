@@ -4,7 +4,8 @@ import 'react-calendar/dist/Calendar.css';
 import './calendar-custom.css';
 import { updateStatus, updateTaskAdvan } from "@/services/tasks/updateTaskService";
 import { taskDelete } from "@/services/tasks/taskDeleteService";
-
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
@@ -20,6 +21,104 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedDate, filterStatus]);
+
+  // Hàm phụ xóa dấu để tránh lỗi Unicode
+  const removeVietnameseTones = (str) => {
+    if (!str) return "";
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9\s\-\:\/]/g, '');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const dateStr = selectedDate.toLocaleDateString('vi-VN');
+
+    // --- 1. TRANG TRI PHAN DAU (HEADER) ---
+    // Hinh chu nhat trang tri phia tren
+    doc.setFillColor(24, 90, 219);
+    doc.rect(0, 0, 210, 15, 'F');
+
+    // Tieu de chinh
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(31, 41, 55);
+    doc.text(removeVietnameseTones("DANH SACH NHIEM VU"), 14, 30);
+
+    // Ngay thang va Icon gia (Dung hinh tron)
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Ngay thuc hien: ${dateStr}`, 14, 38);
+
+    // Duong ke ngang dam nhat
+    doc.setDrawColor(229, 231, 235);
+    doc.line(14, 42, 196, 42);
+
+    // --- 2. CHUAN BI DU LIEU ---
+    const tableColumn = ["STT", "NHIEM VU", "THOI GIAN", "GHI CHU", "TRANG THAI"];
+    const tableRows = filteredTasks.map((task, index) => [
+      index + 1,
+      removeVietnameseTones(task.taskName || task.taskContent).toUpperCase(), // In hoa ten nhiem vu
+      `${task.startTime || "00:00"} - ${task.endTime || "23:59"}`,
+      removeVietnameseTones(task.taskNote || "---"),
+      (task.status === 'done' || task.status === 'complete') ? "HOAN THANH" : "....",
+    ]);
+
+    // --- 3. GOI AUTOTABLE VOI STYLE DEP ---
+    autoTable(doc, {
+      startY: 48,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'striped', // Dung ke soc cho de doc
+      headStyles: {
+        fillColor: [24, 90, 219],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold',
+        halign: 'center',
+        cellPadding: 5,
+      },
+      bodyStyles: {
+        fontSize: 9,
+        cellPadding: 4,
+        textColor: [55, 65, 81],
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 20},
+        2: { halign: 'center', fontStyle: 'italic' },
+        4: { halign: 'center', fontStyle: 'bold' }, // Trang thai in dam
+      },
+      // To mau cho cot trang thai (Logic: Done = Xanh, Pending = Cam)
+      didParseCell: function (data) {
+        if (data.section === 'body' && data.column.index === 4) {
+          const status = data.cell.raw;
+          if (status === "HOAN THANH") {
+            data.cell.styles.textColor = [22, 163, 74]; // Green
+          } else {
+            data.cell.styles.textColor = [234, 88, 12]; // Orange
+          }
+        }
+      },
+      margin: { left: 14, right: 14 },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251], // Mau nen dong xen ke
+      }
+    });
+
+    // --- 4. PHAN CHAN TRANG (FOOTER) ---
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(156, 163, 175);
+      doc.text(
+        `Trang ${i} / ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`Tasks_Professional_${dateStr.replace(/\//g, '-')}.pdf`);
+  };
 
   // --- LOGIC CẬP NHẬT TRẠNG THÁI ---
   const updateTaskStatus = async (taskId, currentStatus) => {
@@ -171,16 +270,24 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
               <span>{selectedDate.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             </p>
           </div>
-          <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
-            {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Xong' }].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFilterStatus(tab.id)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportPDF}
+              className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-md"
+            >
+              Xuất PDF
+            </button>
+            <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+              {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Xong' }].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterStatus(tab.id)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
