@@ -17,7 +17,7 @@ const StatsAndFilters = ({
 }) => {
   return (
     <div className="flex flex-col gap-6">
-      {/* Nhóm 1: Lọc theo Trạng thái (Code cũ của bạn) */}
+      {/* Nhóm 1: Lọc theo Trạng thái */}
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex flex-wrap gap-2">
           {Object.keys(FilterType).map((type) => (
