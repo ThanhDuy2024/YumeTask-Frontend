@@ -6,11 +6,13 @@ import { updateStatus, updateTaskAdvan } from "@/services/tasks/updateTaskServic
 import { taskDelete } from "@/services/tasks/taskDeleteService";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+
 export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
   const [loadingId, setLoadingId] = useState(null);
+  const [sortType, setSortType] = useState('none'); // TÍNH NĂNG MỚI: 'none', 'startTime', 'endTime'
 
   // --- STATE CHO MODAL CHỈNH SỬA ---
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -20,7 +22,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, filterStatus]);
+  }, [selectedDate, filterStatus, sortType]); // Thêm sortType vào dependency
 
   // Hàm phụ xóa dấu để tránh lỗi Unicode
   const removeVietnameseTones = (str) => {
@@ -33,89 +35,54 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     const dateStr = selectedDate.toLocaleDateString('vi-VN');
 
     // --- 1. TRANG TRI PHAN DAU (HEADER) ---
-    // Hinh chu nhat trang tri phia tren
     doc.setFillColor(24, 90, 219);
     doc.rect(0, 0, 210, 15, 'F');
-
-    // Tieu de chinh
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.setTextColor(31, 41, 55);
     doc.text(removeVietnameseTones("DANH SACH NHIEM VU"), 14, 30);
-
-    // Ngay thang va Icon gia (Dung hinh tron)
     doc.setFontSize(10);
     doc.setTextColor(107, 114, 128);
     doc.text(`Ngay thuc hien: ${dateStr}`, 14, 38);
-
-    // Duong ke ngang dam nhat
     doc.setDrawColor(229, 231, 235);
     doc.line(14, 42, 196, 42);
 
-    // --- 2. CHUAN BI DU LIEU ---
+    // --- 2. CHUAN BI DU LIEU (Dùng filteredTasks đã sắp xếp) ---
     const tableColumn = ["STT", "NHIEM VU", "THOI GIAN", "GHI CHU", "TRANG THAI"];
     const tableRows = filteredTasks.map((task, index) => [
       index + 1,
-      removeVietnameseTones(task.taskName || task.taskContent).toUpperCase(), // In hoa ten nhiem vu
+      removeVietnameseTones(task.taskName || task.taskContent).toUpperCase(),
       `${task.startTime || "00:00"} - ${task.endTime || "23:59"}`,
       removeVietnameseTones(task.taskNote || "---"),
       (task.status === 'done' || task.status === 'complete') ? "HOAN THANH" : "....",
     ]);
 
-    // --- 3. GOI AUTOTABLE VOI STYLE DEP ---
     autoTable(doc, {
       startY: 48,
       head: [tableColumn],
       body: tableRows,
-      theme: 'striped', // Dung ke soc cho de doc
-      headStyles: {
-        fillColor: [24, 90, 219],
-        textColor: [255, 255, 255],
-        fontSize: 10,
-        fontStyle: 'bold',
-        halign: 'center',
-        cellPadding: 5,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        cellPadding: 4,
-        textColor: [55, 65, 81],
-      },
+      theme: 'striped',
+      headStyles: { fillColor: [24, 90, 219], textColor: [255, 255, 255], fontSize: 10, fontStyle: 'bold', halign: 'center' },
       columnStyles: {
-        0: { halign: 'center', cellWidth: 20},
-        2: { halign: 'center', fontStyle: 'italic' },
-        4: { halign: 'center', fontStyle: 'bold' }, // Trang thai in dam
-      },
-      // To mau cho cot trang thai (Logic: Done = Xanh, Pending = Cam)
-      didParseCell: function (data) {
-        if (data.section === 'body' && data.column.index === 4) {
-          const status = data.cell.raw;
-          if (status === "HOAN THANH") {
-            data.cell.styles.textColor = [22, 163, 74]; // Green
-          } else {
-            data.cell.styles.textColor = [234, 88, 12]; // Orange
-          }
+        0: {
+          halign: 'center', cellWidth: 20
+        },
+        1: {
+          cellWidth: 50
+        },
+        2: {
+          halign: 'center', cellWidth: 40
+        },
+        3: {
+          halign: 'left',
+          cellWidth: 50
+        },
+        4: {
+          halign: 'center'
         }
       },
-      margin: { left: 14, right: 14 },
-      alternateRowStyles: {
-        fillColor: [249, 250, 251], // Mau nen dong xen ke
-      }
+      margin: { left: 14, right: 14 }
     });
-
-    // --- 4. PHAN CHAN TRANG (FOOTER) ---
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setTextColor(156, 163, 175);
-      doc.text(
-        `Trang ${i} / ${pageCount}`,
-        doc.internal.pageSize.getWidth() / 2,
-        doc.internal.pageSize.getHeight() - 10,
-        { align: 'center' }
-      );
-    }
 
     doc.save(`Tasks_Professional_${dateStr.replace(/\//g, '-')}.pdf`);
   };
@@ -126,9 +93,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     setLoadingId(taskId);
     try {
       const response = await updateStatus(taskId, { status: newStatus });
-      if (response) {
-        await handleTaskChanged();
-      }
+      if (response) await handleTaskChanged();
     } catch (error) {
       console.error("Lỗi cập nhật trạng thái:", error);
     } finally {
@@ -143,9 +108,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     setLoadingId(taskId);
     try {
       const response = await taskDelete(taskId);
-      if (response) {
-        await handleTaskChanged();
-      }
+      if (response) await handleTaskChanged();
     } catch (error) {
       console.error("Lỗi khi xóa task:", error);
     } finally {
@@ -158,7 +121,6 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     e.stopPropagation();
     const dateObj = parseTaskDate(task.dateTime || task.createdAt);
     const formattedDate = dateObj ? dateObj.toISOString().split('T')[0] : "";
-
     setEditingTask({
       ...task,
       editName: task.taskName || task.taskContent,
@@ -186,7 +148,6 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
         await handleTaskChanged();
       }
     } catch (error) {
-      console.error("Lỗi cập nhật:", error);
       alert("Không thể cập nhật thông tin!");
     } finally {
       setLoadingId(null);
@@ -205,22 +166,30 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     return isNaN(dateObj.getTime()) ? null : dateObj;
   };
 
-  // Logic lọc nhiệm vụ cho ngày được chọn
+  // --- LOGIC LỌC VÀ SẮP XẾP MỚI ---
   const tasksForSelectedDate = tasks.filter(task => {
     const taskDateObj = parseTaskDate(task.dateTime ? task.dateTime : task.createdAt);
     return taskDateObj ? taskDateObj.toDateString() === selectedDate.toDateString() : false;
   });
 
-  const filteredTasks = tasksForSelectedDate.filter(task => {
+  let filteredTasks = tasksForSelectedDate.filter(task => {
     if (filterStatus === 'all') return true;
     if (filterStatus === 'complete') return task.status === 'done' || task.status === 'complete';
     if (filterStatus === 'init') return task.status === 'init' || task.status === 'todo' || !task.status;
     return true;
   });
 
+  // Áp dụng sắp xếp
+  if (sortType !== 'none') {
+    filteredTasks = [...filteredTasks].sort((a, b) => {
+      const timeA = a[sortType] || "00:00";
+      const timeB = b[sortType] || "00:00";
+      return timeA.localeCompare(timeB);
+    });
+  }
+
   const totalTasksInDay = tasksForSelectedDate.length;
   const completedTasksInDay = tasksForSelectedDate.filter(t => t.status === 'done' || t.status === 'complete').length;
-
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
   const currentTasks = filteredTasks.slice((currentPage - 1) * tasksPerPage, currentPage * tasksPerPage);
 
@@ -233,7 +202,6 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
         const taskTime = new Date(taskDateObj.getFullYear(), taskDateObj.getMonth(), taskDateObj.getDate()).getTime();
         return taskTime === calendarDate;
       });
-
       if (tasksInDay.length > 0) {
         return (
           <div className="flex justify-center gap-0.5 mt-1 flex-wrap px-1">
@@ -249,8 +217,14 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-8 w-full font-sans relative">
-      <div className="lg:col-span-5 p-6 bg-white rounded-3xl border border-gray-100 shadow-xl">
-        <Calendar onChange={setSelectedDate} value={selectedDate} tileContent={tileContent} locale="vi-VN" className="mx-auto border-none w-full text-lg" />
+      <div className="lg:col-span-5 p-10 bg-white rounded-3xl border border-gray-100 shadow-xl flex items-center justify-center">
+        <Calendar
+          onChange={setSelectedDate}
+          value={selectedDate}
+          tileContent={tileContent}
+          locale="vi-VN"
+          className="mx-auto border-none w-full h-auto text-xl" // Đổi text-lg thành text-xl
+        />
       </div>
 
       <div className="lg:col-span-7 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl min-h-[600px] flex flex-col">
@@ -264,29 +238,37 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
                 </div>
               )}
             </div>
-            <p className="text-[#185ADB] font-medium">
+            <p className="text-[#185ADB] font-medium text-sm">
               <span className="capitalize">{selectedDate.toLocaleDateString('vi-VN', { weekday: 'long' })}</span>
               <span> • </span>
               <span>{selectedDate.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportPDF}
-              className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-md"
-            >
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={handleExportPDF} className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-md">
               Xuất PDF
             </button>
-            <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
-              {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Xong' }].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setFilterStatus(tab.id)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  {tab.label}
+
+            {/* TOOLBAR MỚI: SẮP XẾP & LỌC */}
+            <div className="flex flex-wrap gap-2 justify-end">
+              {/* Cụm Sắp xếp */}
+              <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+                <button onClick={() => setSortType(sortType === 'startTime' ? 'none' : 'startTime')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sortType === 'startTime' ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
+                  🕒 Bắt đầu
                 </button>
-              ))}
+                <button onClick={() => setSortType(sortType === 'endTime' ? 'none' : 'endTime')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sortType === 'endTime' ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
+                  ⌛ Kết thúc
+                </button>
+              </div>
+
+              {/* Cụm Lọc trạng thái */}
+              <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+                {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Xong' }].map((tab) => (
+                  <button key={tab.id} onClick={() => setFilterStatus(tab.id)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -297,106 +279,51 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
               const isDone = task.status === 'done' || task.status === 'complete';
               const isUpdating = loadingId === task.id;
               return (
-                <div
-                  key={task.id}
-                  className={`group p-5 rounded-2xl flex items-center gap-4 border transition-all cursor-pointer ${isDone ? 'bg-gray-50/50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-blue-200'} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}
-                  onClick={() => updateTaskStatus(task.id, task.status)}
-                >
+                <div key={task.id} className={`group p-5 rounded-2xl flex items-center gap-4 border transition-all cursor-pointer ${isDone ? 'bg-gray-50/50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-blue-200'} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`} onClick={() => updateTaskStatus(task.id, task.status)}>
                   <div className="relative">
                     <input type="checkbox" checked={isDone} readOnly className="w-6 h-6 rounded-lg accent-[#185ADB] cursor-pointer" />
-                    {isUpdating && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
-                        <div className="w-4 h-4 border-2 border-[#185ADB] border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
+                    {isUpdating && <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg"><div className="w-4 h-4 border-2 border-[#185ADB] border-t-transparent rounded-full animate-spin"></div></div>}
                   </div>
                   <div className="flex-1 flex flex-col gap-1">
-                    <p className={`text-base font-semibold leading-tight transition-all ${isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                      {task.taskName || task.taskContent}
-                    </p>
-
-                    {task.taskNote && (
-                      <p className={`text-sm ${isDone ? 'text-gray-300' : 'text-gray-500'} italic line-clamp-1`}>
-                        <span className="font-bold">Ghi chú:</span> {task.taskNote}
-                      </p>
-                    )}
-
+                    <p className={`text-base font-semibold leading-tight transition-all ${isDone ? 'line-through text-gray-400' : 'text-gray-700'}`}>{task.taskName || task.taskContent}</p>
+                    {task.taskNote && <p className={`text-sm ${isDone ? 'text-gray-300' : 'text-gray-500'} italic line-clamp-1`}><span className="font-bold">Ghi chú:</span> {task.taskNote}</p>}
                     <div className="flex flex-wrap items-center gap-y-3 gap-x-4 mt-2">
                       <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-[#185ADB] rounded-xl border border-blue-100 shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-xs font-bold tracking-wide uppercase">
-                          {task.startTime && task.endTime ? `${task.startTime} — ${task.endTime}` : `00:00 — 23:59`}
-                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span className="text-xs font-bold tracking-wide uppercase">{task.startTime && task.endTime ? `${task.startTime} — ${task.endTime}` : `00:00 — 23:59`}</span>
                       </div>
-
                       <div className="flex items-center gap-1.5 text-gray-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-[12px] font-semibold">
-                          Ngày tạo: <span className="font-normal text-gray-400">{task.createdAt}</span>
-                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span className="text-[12px] font-semibold">Ngày tạo: <span className="font-normal text-gray-400">{task.createdAt}</span></span>
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={(e) => openEditModal(e, task)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button onClick={(e) => handleDeleteTask(e, task.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <button onClick={(e) => openEditModal(e, task)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✎</button>
+                    <button onClick={(e) => handleDeleteTask(e, task.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">✕</button>
                   </div>
                 </div>
               );
             })
           ) : (
-            <div className="flex flex-col items-center justify-center h-[300px] text-gray-300">
-              <div className="text-6xl mb-4">✨</div>
-              <p className="text-gray-400 font-medium italic">Không có nhiệm vụ nào</p>
-            </div>
+            <div className="flex flex-col items-center justify-center h-[300px] text-gray-300 italic">📒 Không có nhiệm vụ nào</div>
           )}
         </div>
 
-        {/* --- PHẦN PHÂN TRANG (PAGINATION) --- */}
         {totalPages > 1 && (
           <div className="pt-6 mt-6 border-t border-gray-50 flex items-center justify-center gap-4">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${currentPage === 1 ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}
-            >
-              Trước
-            </button>
+            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${currentPage === 1 ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}>Trước</button>
             <div className="flex items-center gap-2">
               {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index + 1}
-                  onClick={() => setCurrentPage(index + 1)}
-                  className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${currentPage === index + 1 ? 'bg-[#185ADB] text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}
-                >
-                  {index + 1}
-                </button>
+                <button key={index + 1} onClick={() => setCurrentPage(index + 1)} className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${currentPage === index + 1 ? 'bg-[#185ADB] text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}>{index + 1}</button>
               ))}
             </div>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${currentPage === totalPages ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}
-            >
-              Sau
-            </button>
+            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${currentPage === totalPages ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}>Sau</button>
           </div>
         )}
       </div>
 
-      {/* --- MODAL CHỈNH SỬA --- */}
+      {/* MODAL EDIT */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
