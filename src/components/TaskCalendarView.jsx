@@ -6,6 +6,13 @@ import { updateStatus, updateTaskAdvan } from "@/services/tasks/updateTaskServic
 import { taskDelete } from "@/services/tasks/taskDeleteService";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import slugify from "slugify";
+import { ClockFading } from "lucide-react";
+import { Search } from "lucide-react";
+import { FileText } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -13,6 +20,12 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [loadingId, setLoadingId] = useState(null);
   const [sortType, setSortType] = useState('none'); // TÍNH NĂNG MỚI: 'none', 'startTime', 'endTime'
+  // --- STATE TÌM KIẾM ---
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  // --- STATE CHO MODAL XÓA ---
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   // --- STATE CHO MODAL CHỈNH SỬA ---
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -101,16 +114,28 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
     }
   };
 
-  // --- LOGIC XÓA TASK ---
-  const handleDeleteTask = async (e, taskId) => {
+  // Hàm thực hiện xóa thực sự khi ấn nút "Xác nhận" trên Modal
+  const confirmDeleteTask = (e, task) => {
     e.stopPropagation();
-    if (!window.confirm("Bạn có chắc chắn muốn xóa nhiệm vụ này?")) return;
-    setLoadingId(taskId);
+    setTaskToDelete(task);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Hàm thực hiện xóa thực sự khi ấn nút "Xác nhận" trên Modal
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete) return;
+
+    setLoadingId(taskToDelete.id);
     try {
-      const response = await taskDelete(taskId);
-      if (response) await handleTaskChanged();
+      const response = await taskDelete(taskToDelete.id);
+      if (response) {
+        setIsDeleteModalOpen(false);
+        setTaskToDelete(null);
+        await handleTaskChanged();
+      }
     } catch (error) {
       console.error("Lỗi khi xóa task:", error);
+      alert("Không thể xóa nhiệm vụ!");
     } finally {
       setLoadingId(null);
     }
@@ -145,6 +170,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
       });
       if (response) {
         setIsEditModalOpen(false);
+        toast.success("Nhiệm vụ được cập nhật thành công")
         await handleTaskChanged();
       }
     } catch (error) {
@@ -173,10 +199,14 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
   });
 
   let filteredTasks = tasksForSelectedDate.filter(task => {
-    if (filterStatus === 'all') return true;
-    if (filterStatus === 'complete') return task.status === 'done' || task.status === 'complete';
-    if (filterStatus === 'init') return task.status === 'init' || task.status === 'todo' || !task.status;
-    return true;
+    let matchesStatus = true;
+    if (filterStatus === 'complete') matchesStatus = task.status === 'done' || task.status === 'complete';
+    if (filterStatus === 'init') matchesStatus = task.status === 'init' || task.status === 'todo' || !task.status;
+
+    const querySlug = slugify(searchQuery, { lower: true, locale: 'vi', remove: /[*+~.()'"!:@]/g });
+    const taskSlug = task.slug || slugify(task.taskContent || "", { lower: true, locale: 'vi' });
+    const matchesSearch = taskSlug.includes(querySlug);
+    return matchesStatus && matchesSearch;
   });
 
   // Áp dụng sắp xếp
@@ -244,19 +274,35 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
               <span>{selectedDate.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <button onClick={handleExportPDF} className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-md">
-              Xuất PDF
-            </button>
+          <div className="flex flex-col items-end gap-4 mb-[20px]">
+            <div className="flex gap-2">
+              {/* NÚT TÌM KIẾM MỚI */}
+              <button
+                onClick={() => setIsSearchModalOpen(true)}
+                className="px-3 py-1.5 bg-blue-700 text-white rounded-xl text-xs font-bold hover:bg-blue-800 transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <span><Search width={"20px"} /></span> Tìm nhanh
+              </button>
+
+              <button
+                onClick={handleExportPDF}
+                className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-md cursor-pointer flex items-center gap-2"
+              >
+                <span className="flex-shrink-0">
+                  <FileText size={14} />
+                </span>
+                <span>Xuất PDF</span>
+              </button>
+            </div>
 
             {/* TOOLBAR MỚI: SẮP XẾP & LỌC */}
             <div className="flex flex-wrap gap-2 justify-end">
               {/* Cụm Sắp xếp */}
               <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
-                <button onClick={() => setSortType(sortType === 'startTime' ? 'none' : 'startTime')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sortType === 'startTime' ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
+                <button onClick={() => setSortType(sortType === 'startTime' ? 'none' : 'startTime')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer hover:bg-white hover:text-[#185ADB] hover:shadow-sm ${sortType === 'startTime' ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
                   🕒 Bắt đầu
                 </button>
-                <button onClick={() => setSortType(sortType === 'endTime' ? 'none' : 'endTime')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${sortType === 'endTime' ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
+                <button onClick={() => setSortType(sortType === 'endTime' ? 'none' : 'endTime')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer hover:bg-white hover:text-[#185ADB] hover:shadow-sm ${sortType === 'endTime' ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
                   ⌛ Kết thúc
                 </button>
               </div>
@@ -264,7 +310,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
               {/* Cụm Lọc trạng thái */}
               <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner">
                 {[{ id: 'all', label: 'Tất cả' }, { id: 'init', label: 'Chưa xong' }, { id: 'complete', label: 'Xong' }].map((tab) => (
-                  <button key={tab.id} onClick={() => setFilterStatus(tab.id)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
+                  <button key={tab.id} onClick={() => setFilterStatus(tab.id)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer hover:bg-white hover:text-[#185ADB] hover:shadow-sm ${filterStatus === tab.id ? 'bg-white text-[#185ADB] shadow-sm' : 'text-gray-500'}`}>
                     {tab.label}
                   </button>
                 ))}
@@ -299,8 +345,12 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={(e) => openEditModal(e, task)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">✎</button>
-                    <button onClick={(e) => handleDeleteTask(e, task.id)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">✕</button>
+                    <button onClick={(e) => openEditModal(e, task)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer">
+                      <Pencil />
+                    </button>
+                    <button onClick={(e) => confirmDeleteTask(e, task)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer">
+                      <Trash2 />
+                    </button>
                   </div>
                 </div>
               );
@@ -312,13 +362,13 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
 
         {totalPages > 1 && (
           <div className="pt-6 mt-6 border-t border-gray-50 flex items-center justify-center gap-4">
-            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${currentPage === 1 ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}>Trước</button>
+            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${currentPage === 1 ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}>Trước</button>
             <div className="flex items-center gap-2">
               {[...Array(totalPages)].map((_, index) => (
-                <button key={index + 1} onClick={() => setCurrentPage(index + 1)} className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${currentPage === index + 1 ? 'bg-[#185ADB] text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}>{index + 1}</button>
+                <button key={index + 1} onClick={() => setCurrentPage(index + 1)} className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${currentPage === index + 1 ? 'bg-[#185ADB] text-white shadow-md' : 'text-gray-400 hover:bg-gray-100'}`}>{index + 1}</button>
               ))}
             </div>
-            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${currentPage === totalPages ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}>Sau</button>
+            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${currentPage === totalPages ? 'text-gray-300 bg-gray-50 cursor-not-allowed' : 'text-[#185ADB] bg-blue-50 hover:bg-[#185ADB] hover:text-white'}`}>Sau</button>
           </div>
         )}
       </div>
@@ -335,7 +385,7 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">Ghi chú / Chi tiết</label>
-                <textarea className="w-full p-3.5 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-[#185ADB] outline-none transition-all min-h-[100px] resize-none" value={editingTask?.editNote || ""} onChange={(e) => setEditingTask({ ...editingTask, editNote: e.target.value })} />
+                <textarea placeholder="VD: toan, van, anh" className="w-full p-3.5 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-[#185ADB] outline-none transition-all min-h-[100px] resize-none" value={editingTask?.editNote || ""} onChange={(e) => setEditingTask({ ...editingTask, editNote: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -352,10 +402,130 @@ export const TaskCalendarView = ({ tasks, handleTaskChanged }) => {
                 <input type="date" required className="w-full p-3.5 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-[#185ADB] outline-none" value={editingTask?.editDate || ""} onChange={(e) => setEditingTask({ ...editingTask, editDate: e.target.value })} />
               </div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200">Hủy</button>
-                <button type="submit" className="flex-1 py-3.5 rounded-2xl bg-[#185ADB] font-bold text-white shadow-lg">Lưu thay đổi</button>
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 cursor-pointer">Hủy</button>
+                <button type="submit" className="flex-1 py-3.5 rounded-2xl bg-[#185ADB] font-bold text-white shadow-lg cursor-pointer">Lưu thay đổi</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TÌM KIẾM */}
+      {isSearchModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">Tìm kiếm nhanh</h3>
+                <p className="text-xs text-gray-400 mt-1">Sử dụng slug hoặc tên nhiệm vụ</p>
+              </div>
+              <button
+                onClick={() => { setIsSearchModalOpen(false); setSearchQuery(""); }}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Input tìm kiếm */}
+            <div className="relative">
+              <span className="absolute left-4 top-[18px] text-gray-400 text-lg"><Search/></span>
+              <input
+                type="text"
+                placeholder="Tìm nhanh (ví dụ: 'hop team', 'coding')..."
+                className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[#185ADB] outline-none transition-all text-base shadow-inner"
+                value={searchQuery}
+                autoFocus
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <p className="text-[16px] text-gray-400 mt-3 ml-2 flex items-center gap-1.5 italic">
+                <span className="not-italic"></span> Sếp có thể gõ tiếng Việt không dấu để tìm kiếm nhanh hơn!
+              </p>
+            </div>
+
+            {/* Kết quả xem trước */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-3 px-2">
+                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Kết quả khớp ({filteredTasks.length})</span>
+                {searchQuery && <button onClick={() => setSearchQuery("")} className="text-[10px] text-[#185ADB] font-bold hover:underline">Xóa trắng</button>}
+              </div>
+
+              <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                {filteredTasks.length > 0 ? (
+                  filteredTasks.slice(0, 5).map(task => (
+                    <div key={task.id} className="p-4 bg-gray-50/50 rounded-2xl border border-transparent hover:border-blue-100 hover:bg-white transition-all group flex justify-between items-center">
+                      <div className="flex-1 pr-4">
+                        <p className="text-sm font-bold text-gray-700 group-hover:text-[#185ADB] transition-colors line-clamp-1">{task.taskName || task.taskContent}</p>
+                        <div className="flex items-center gap-1.5 text-gray-500">
+                          <span className="flex-shrink-0 text-gray-400">
+                            <ClockFading size={14} />
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wide leading-none">
+                            {task.startTime || '00:00'} — {task.endTime || '23:59'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] px-2 py-1 rounded-lg bg-white border border-gray-100 text-gray-400 shrink-0">
+                        #{task.slug ? task.slug.substring(0, 10) : 'no-slug'}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 bg-gray-50/30 rounded-2xl border border-dashed border-gray-100">
+                    <p className="text-3xl mb-2">🔭</p>
+                    <p className="text-sm text-gray-400 italic">Không tìm thấy nhiệm vụ nào...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsSearchModalOpen(false)}
+              className="w-full mt-8 py-4 bg-[#185ADB] text-white rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95"
+            >
+              Xem trên danh sách chính
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN XÓA */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              {/* Icon cảnh báo */}
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={32} />
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Xác nhận xóa?</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Sếp có chắc chắn muốn xóa nhiệm vụ <br />
+                <span className="font-bold text-gray-700">"{taskToDelete?.taskName || taskToDelete?.taskContent}"</span>?
+                <br />Hành động này không thể hoàn tác.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 py-3 rounded-2xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={loadingId !== null}
+                  className="flex-1 py-3 rounded-2xl bg-red-500 font-bold text-white shadow-lg shadow-red-100 hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+                >
+                  {loadingId === taskToDelete?.id ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : "Xóa ngay"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

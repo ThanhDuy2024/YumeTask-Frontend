@@ -5,11 +5,13 @@ import TaskList from "@/components/taskList";
 import TaskListPagination from "@/components/taskListPagination";
 import { createTaskAdvan } from "@/services/tasks/createTaskService";
 import { taskAll, taskList } from "@/services/tasks/taskListService";
+import { CalendarCheck } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
 
 export const TaskPage = () => {
   const [taskBuffer, setTaskBuffer] = useState([]);
-  const [allTasks, setAllTasks] = useState([]); 
+  const [allTasks, setAllTasks] = useState([]);
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPage, setTotalPage] = useState(0);
@@ -73,6 +75,7 @@ export const TaskPage = () => {
       });
       if (response) {
         setIsAdvanModalOpen(false);
+        toast.success("Tạo nhiệm vụ thành công")
         setNewAdvanTask({ taskName: "", taskNote: "", startTime: "00:00", endTime: "23:59", date: new Date().toISOString().split('T')[0] });
         await handleTaskChange();
       }
@@ -95,7 +98,7 @@ export const TaskPage = () => {
   return (
     <div className="min-h-screen bg-gray-50/50 pt-8 pb-20">
       <div className={`mx-auto px-4 space-y-6 transition-all duration-700 ${viewMode === 'calendar' ? 'max-w-7xl' : 'max-w-3xl'}`}>
-        
+
         <div className="text-center">
           <h1 className="text-[36px] font-bold text-[#185ADB]">Kế hoạch của tôi</h1>
           <p className="text-gray-500 text-sm mt-2">Quản lý công việc hiệu quả mỗi ngày</p>
@@ -107,36 +110,42 @@ export const TaskPage = () => {
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex p-1 bg-gray-200/50 rounded-xl w-fit">
-            <button 
-              onClick={() => setViewMode("list")} 
-              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500 hover:text-gray-700'}`}
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all hover:bg-white hover:text-[#185ADB] hover:shadow-sm cursor-pointer ${viewMode === 'list' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500 hover:text-gray-700'}`}
             >
               ☰ Danh sách
             </button>
-            <button 
-              onClick={() => setViewMode("calendar")} 
-              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white shadow-md text-[#185ADB]' : 'text-gray-500 hover:text-gray-700'}`}
+            <button
+              onClick={() => setViewMode("calendar")}
+              className={`px-5 py-2 text-sm font-semibold rounded-lg transition-all hover:bg-white hover:text-[#185ADB] hover:shadow-sm cursor-pointer flex items-center gap-2 ${viewMode === 'calendar'
+                  ? 'bg-white shadow-md text-[#185ADB]'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
-              📅 Lịch biểu
+              <span className="flex-shrink-0">
+                <CalendarCheck size={18} />
+              </span>
+              <span>Lịch biểu</span>
             </button>
           </div>
 
           {/* CHỈ HIỂN THỊ NÚT NÂNG CAO KHI Ở CHẾ ĐỘ LỊCH BIỂU */}
           {viewMode === "calendar" && (
-            <button 
+            <button
               onClick={() => setIsAdvanModalOpen(true)}
-              className="bg-[#185ADB] text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1244a7] transition-all"
+              className="bg-[#185ADB] text-white px-5 py-2 rounded-xl font-bold shadow-lg hover:bg-[#1244a7] transition-all cursor-pointer"
             >
               ＋ Thêm nâng cao
             </button>
           )}
 
           {viewMode === "list" && (
-            <StatsAndFilters 
-              filter={filter} 
-              setFilter={handleFilterChange} 
-              timeRange={timeRange} 
-              setTimeRange={handleTimeRangeChange} 
+            <StatsAndFilters
+              filter={filter}
+              setFilter={handleFilterChange}
+              timeRange={timeRange}
+              setTimeRange={handleTimeRangeChange}
             />
           )}
         </div>
@@ -169,25 +178,25 @@ export const TaskPage = () => {
             <form onSubmit={handleSaveAdvanTask} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Tên nhiệm vụ</label>
-                <input type="text" required className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB]" value={newAdvanTask.taskName} onChange={(e) => setNewAdvanTask({...newAdvanTask, taskName: e.target.value})} />
+                <input type="text" placeholder="VD: Nhiem vu...." required className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB]" value={newAdvanTask.taskName} onChange={(e) => setNewAdvanTask({ ...newAdvanTask, taskName: e.target.value })} />
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Ghi chú</label>
-                <textarea className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB] min-h-[80px]" value={newAdvanTask.taskNote} onChange={(e) => setNewAdvanTask({...newAdvanTask, taskNote: e.target.value})} />
+                <textarea placeholder="VD: Lam toan, van, anh" className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB] min-h-[80px]" value={newAdvanTask.taskNote} onChange={(e) => setNewAdvanTask({ ...newAdvanTask, taskNote: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Bắt đầu</label>
-                  <input type="time" className="w-full p-3.5 rounded-2xl border border-gray-200" value={newAdvanTask.startTime} onChange={(e) => setNewAdvanTask({...newAdvanTask, startTime: e.target.value})} />
+                  <input type="time" className="w-full p-3.5 rounded-2xl border border-gray-200" value={newAdvanTask.startTime} onChange={(e) => setNewAdvanTask({ ...newAdvanTask, startTime: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Kết thúc</label>
-                  <input type="time" className="w-full p-3.5 rounded-2xl border border-gray-200" value={newAdvanTask.endTime} onChange={(e) => setNewAdvanTask({...newAdvanTask, endTime: e.target.value})} />
+                  <input type="time" className="w-full p-3.5 rounded-2xl border border-gray-200" value={newAdvanTask.endTime} onChange={(e) => setNewAdvanTask({ ...newAdvanTask, endTime: e.target.value })} />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Ngày làm việc</label>
-                <input type="date" required className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB]" value={newAdvanTask.date} onChange={(e) => setNewAdvanTask({...newAdvanTask, date: e.target.value})} />
+                <input type="date" required className="w-full p-3.5 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-[#185ADB]" value={newAdvanTask.date} onChange={(e) => setNewAdvanTask({ ...newAdvanTask, date: e.target.value })} />
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setIsAdvanModalOpen(false)} className="flex-1 py-3.5 rounded-2xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all">Hủy</button>
