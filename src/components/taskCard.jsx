@@ -90,7 +90,7 @@ const TaskCard = ({ task, index, handleTaskChanged }) => {
 
             <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Calendar className="size-3" /> {`Ngày bắt đầu làm ${moment(task.dateTime).format("DD/MM/YYYY")}` || `Ngày tạo: ${task.createdAt}`}
+                <Calendar className="size-3" /> {`Ngày tạo: ${task.createdAt}`}
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="size-3" /> Thời gian làm: {task.startTime || "00:00"} - {task.endTime || "23:59"}
